@@ -7,6 +7,11 @@ Outils permettant de connecter [Grist](https://www.getgrist.com/) (SaaS ou self-
 | [`src/grist-mcp-server`](src/grist-mcp-server) | Serveur MCP qui expose l'API Grist à **Claude Desktop** / **Claude Code** | Utilisateurs de Claude |
 | [`src/grist-openai-plugin`](src/grist-openai-plugin) | Serveur GPT Action (FastAPI) qui expose l'API Grist à un **Custom GPT** dans ChatGPT | Utilisateurs de ChatGPT |
 
+Les deux couvrent l'intégralité de l'[API REST Grist](https://support.getgrist.com/api/) : organisations, espaces de travail, documents (renommage, suppression, déplacement, export XLSX/CSV/SQLite, historique, accès), tables, colonnes, enregistrements (CRUD + upsert), pièces jointes, webhooks et SQL en lecture seule. Détail complet :
+
+- [Référence des outils MCP](src/grist-mcp-server/docs/API_REFERENCE.md)
+- [Référence des endpoints GPT Action](src/grist-openai-plugin/docs/API_REFERENCE.md)
+
 Les deux projets sont indépendants : installez celui qui correspond à l'assistant que vous utilisez (ou les deux). Chacun a son propre README détaillé (liens ci-dessus) ; ce document est un guide d'installation général, pensé pour être suivi sur **Windows, macOS et Linux**.
 
 ## Prérequis
@@ -102,12 +107,22 @@ Puis suivez la section **"Configurer le Custom GPT"** du [README de grist-openai
 - **Erreur d'authentification Grist (401/403)** : vérifiez que `GRIST_API_KEY` dans `.env` est correcte et que `GRIST_API_URL` correspond bien à votre instance (SaaS ou self-hosted).
 - **Le Custom GPT n'arrive pas à joindre le serveur** : ChatGPT a besoin d'une URL **HTTPS** publique. En local, utilisez un tunnel comme [ngrok](https://ngrok.com/) (`ngrok http 8000`).
 
+## Opérations sensibles
+
+Plusieurs outils/endpoints suppriment définitivement des données Grist (organisation, espace de travail, document, historique, lignes, colonnes, webhooks). Ces opérations sont **irréversibles** — vérifiez toujours les identifiants concernés avant de les exécuter, en particulier lorsqu'ils sont déclenchés par un assistant conversationnel. Voir les sections "Attention" des références d'API liées ci-dessus.
+
 ## Structure du dépôt
 
 ```
 grist-ai-tools/
 ├── src/
-│   ├── grist-mcp-server/      # Serveur MCP pour Claude
-│   └── grist-openai-plugin/   # Serveur GPT Action pour ChatGPT
-└── README.md                  # Ce fichier
+│   ├── grist-mcp-server/
+│   │   ├── grist_mcp_server/    # Client API Grist + serveur MCP (outils)
+│   │   ├── docs/API_REFERENCE.md  # Référence des 46 outils
+│   │   └── README.md
+│   └── grist-openai-plugin/
+│       ├── grist_openai_plugin/   # Client API Grist + serveur FastAPI (endpoints)
+│       ├── docs/API_REFERENCE.md  # Référence des 39 endpoints
+│       └── README.md
+└── README.md                      # Ce fichier
 ```

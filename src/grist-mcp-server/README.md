@@ -4,12 +4,9 @@ Serveur MCP (Model Context Protocol) exposant l'API REST de [Grist](https://www.
 
 ## Outils exposés
 
-- `list_orgs`, `list_workspaces`, `get_workspace`, `create_workspace`
-- `create_doc`, `get_doc`
-- `list_tables`, `add_tables`
-- `list_columns`, `add_columns`, `update_columns`
-- `list_records`, `add_records`, `update_records`, `delete_records`
-- `run_sql` (SELECT en lecture seule)
+46 outils couvrant l'intégralité de l'API REST Grist : organisations, espaces de travail, documents (y compris renommage, suppression, déplacement, export XLSX/CSV/SQLite, historique, accès), tables, colonnes, enregistrements (CRUD + upsert), pièces jointes, webhooks, et SQL en lecture seule.
+
+Voir la [référence complète des outils](docs/API_REFERENCE.md) pour la liste détaillée avec signatures et descriptions.
 
 ## Installation
 
@@ -57,6 +54,10 @@ Ou, sans installation globale, en pointant directement sur le venv du projet :
   }
 }
 ```
+
+## Attention
+
+Certains outils suppriment définitivement des données côté Grist (`delete_org`, `delete_workspace`, `delete_doc`, `delete_doc_history`, `delete_records`, `delete_column`, `delete_webhook`). Ces opérations sont **irréversibles** : vérifiez toujours les identifiants avant de les exécuter, surtout lorsqu'ils sont invoqués par un assistant conversationnel.
 
 ## Test en local
 

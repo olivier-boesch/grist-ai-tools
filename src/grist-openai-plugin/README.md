@@ -6,12 +6,9 @@ Contrairement aux anciens "plugins ChatGPT" (dépréciés par OpenAI), un GPT Ac
 
 ## Endpoints exposés
 
-- `GET /orgs`, `GET /orgs/{org_id}/workspaces`, `GET /workspaces/{workspace_id}`, `POST /orgs/{org_id}/workspaces`
-- `POST /workspaces/{workspace_id}/docs`, `GET /docs/{doc_id}`
-- `GET /docs/{doc_id}/tables`, `POST /docs/{doc_id}/tables`
-- `GET .../columns`, `POST .../columns`, `PATCH .../columns`
-- `GET .../records`, `POST .../records`, `PATCH .../records`, `POST .../records/delete`
-- `POST /docs/{doc_id}/sql` (SELECT en lecture seule)
+39 endpoints couvrant l'intégralité de l'API REST Grist : organisations, espaces de travail, documents (y compris renommage, suppression, déplacement, export XLSX/CSV/SQLite, historique, accès), tables, colonnes, enregistrements (CRUD + upsert), pièces jointes, webhooks, et SQL en lecture seule.
+
+Voir la [référence complète des endpoints](docs/API_REFERENCE.md) pour la liste détaillée avec routes, méthodes et `operationId`.
 
 Le schéma OpenAPI complet est généré automatiquement par FastAPI sur `/openapi.json`.
 
@@ -49,6 +46,10 @@ ChatGPT doit pouvoir atteindre le serveur en HTTPS. En développement, un tunnel
 3. Collez l'URL `https://<votre-domaine>/openapi.json` (ou importez le schéma manuellement).
 4. **Authentication** : choisissez **API Key**, type **Bearer**, et renseignez la valeur de `ACTION_API_KEY`.
 5. Testez un endpoint (ex. `listOrgs`) depuis l'éditeur pour vérifier la connexion.
+
+## Attention
+
+Certains endpoints suppriment définitivement des données côté Grist (`deleteOrg`, `deleteWorkspace`, `deleteDoc`, `deleteDocHistory`, `deleteRecords`, `deleteColumn`, `deleteWebhook`). Ces opérations sont **irréversibles** : le Custom GPT ne devrait les invoquer qu'après confirmation explicite de l'utilisateur.
 
 ## Test en local
 
