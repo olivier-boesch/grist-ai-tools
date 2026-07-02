@@ -30,6 +30,31 @@ def _call(fn, *args, **kwargs) -> Any:
         return {"error": str(e), "status_code": e.status_code}
 
 
+def _call_webhook(fn, *args, **kwargs) -> Any:
+    """Like _call, but clarifies the Grist instance's webhook URL allow-list 403.
+
+    Grist rejects webhook URLs whose domain isn't in the server's
+    ALLOWED_WEBHOOK_DOMAINS configuration, regardless of the URL's validity.
+    The raw message ("Provided url is forbidden") reads like a client mistake,
+    so we surface the real cause instead.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except GristAPIError as e:
+        if e.status_code == 403 and "forbidden" in str(e).lower():
+            return {
+                "error": (
+                    "URL refusée par la politique de sécurité de l'instance Grist "
+                    "(liste blanche de domaines pour les webhooks, ALLOWED_WEBHOOK_DOMAINS "
+                    "côté serveur). Ce n'est pas une erreur de syntaxe de l'appel : "
+                    "demandez à l'administrateur de l'instance d'autoriser ce domaine, "
+                    "ou utilisez une URL sur un domaine déjà autorisé."
+                ),
+                "status_code": 403,
+            }
+        return {"error": str(e), "status_code": e.status_code}
+
+
 # --- Orgs -----------------------------------------------------------------
 
 
@@ -515,14 +540,17 @@ def list_attachments(
 
 
 @mcp.tool()
-def upload_attachments(doc_id: str, file_paths: list[str]) -> Any:
-    """Upload local files as attachments to a document; returns their new IDs.
+def upload_attachments(doc_id: str, files: list[dict[str, str]]) -> Any:
+    """Upload files as attachments to a document; returns their new IDs.
 
     Args:
         doc_id: Document ID.
-        file_paths: Absolute paths of local files to upload.
+        files: List of files to upload, each as
+            {"filename": "photo.jpg", "content_base64": "<base64-encoded bytes>"}.
+            The file content must be base64-encoded and passed inline: this MCP
+            server has no access to the calling client's local filesystem.
     """
-    return _call(_get_client().upload_attachments, doc_id, file_paths)
+    return _call(_get_client().upload_attachments, doc_id, files)
 
 
 @mcp.tool()
@@ -573,7 +601,7 @@ def create_webhook(doc_id: str, fields: dict[str, Any]) -> Any:
         fields: Webhook definition, e.g. {"url": "https://...", "eventTypes":
             ["add", "update"], "tableId": "Tasks", "enabled": true}
     """
-    return _call(_get_client().create_webhook, doc_id, {"fields": fields})
+    return _call_webhook(_get_client().create_webhook, doc_id, {"fields": fields})
 
 
 @mcp.tool()
@@ -585,7 +613,7 @@ def update_webhook(doc_id: str, webhook_id: str, fields: dict[str, Any]) -> Any:
         webhook_id: Webhook ID, as returned by list_webhooks.
         fields: Fields to update, e.g. {"enabled": false}.
     """
-    return _call(_get_client().update_webhook, doc_id, webhook_id, fields)
+    return _call_webhook(_get_client().update_webhook, doc_id, webhook_id, fields)
 
 
 @mcp.tool()

@@ -100,3 +100,5 @@ Le schéma OpenAPI complet (généré automatiquement par FastAPI) est disponibl
 - Les endpoints marqués **Irréversible** suppriment définitivement des données côté Grist.
 - `uploadAttachments` nécessite une requête `multipart/form-data` (dépendance `python-multipart`, déjà incluse) ; ce type de requête n'est pas toujours bien géré par l'éditeur de Custom GPT — préférez un test via `curl` (voir le README) si besoin.
 - Toutes les routes (sauf `/openapi.json`, `/docs`, `/redoc`) exigent l'en-tête `Authorization: Bearer <ACTION_API_KEY>` dès que celle-ci est configurée.
+- `createWebhook`/`updateWebhook` peuvent renvoyer une erreur 403 explicite si le domaine de l'URL n'est pas dans la liste blanche `ALLOWED_WEBHOOK_DOMAINS` configurée côté instance Grist — ce n'est pas une erreur de la requête, mais une politique de sécurité serveur.
+- `addColumns` force `isFormula: false` par défaut sur les colonnes sans champ `formula` ni `isFormula` explicite, pour éviter que les colonnes de données classiques soient créées par erreur comme colonnes formule (comportement par défaut de l'API Grist).

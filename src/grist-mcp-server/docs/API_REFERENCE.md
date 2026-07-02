@@ -76,7 +76,7 @@ Chaque outil renvoie soit la réponse JSON de l'API Grist, soit `{"error": "..."
 | Outil | Description |
 |---|---|
 | `list_attachments(doc_id, filter=None, sort=None, limit=None)` | Liste les métadonnées des pièces jointes du document. |
-| `upload_attachments(doc_id, file_paths)` | Envoie des fichiers locaux comme pièces jointes ; renvoie leurs nouveaux IDs. |
+| `upload_attachments(doc_id, files)` | Envoie des fichiers comme pièces jointes ; `files: [{"filename", "content_base64"}]` (contenu inline, encodé en base64 — le serveur MCP n'a pas accès au système de fichiers de l'appelant). Renvoie leurs nouveaux IDs. |
 | `get_attachment_metadata(doc_id, attachment_id)` | Métadonnées d'une pièce jointe (nom, taille, dates). |
 | `download_attachment(doc_id, attachment_id)` | Télécharge le contenu d'une pièce jointe, encodé en base64. |
 
@@ -98,5 +98,7 @@ Chaque outil renvoie soit la réponse JSON de l'API Grist, soit `{"error": "..."
 ## Notes
 
 - Les outils marqués **Irréversible** suppriment définitivement des données côté Grist : utilisez-les avec prudence, surtout depuis un assistant conversationnel.
-- Les téléchargements binaires (`download_doc`, `download_doc_xlsx`, `download_attachment`) renvoient le contenu encodé en base64 car le protocole MCP transporte du JSON.
+- Les téléchargements et téléversements binaires (`download_doc`, `download_doc_xlsx`, `download_attachment`, `upload_attachments`) transportent leur contenu encodé en base64, car le protocole MCP transporte du JSON et un client MCP distant n'a pas d'accès au système de fichiers du serveur.
 - `run_sql` n'autorise que les requêtes `SELECT` ; toute écriture doit passer par les outils `records`.
+- `create_webhook`/`update_webhook` peuvent échouer avec une erreur 403 explicite si le domaine de l'URL n'est pas dans la liste blanche `ALLOWED_WEBHOOK_DOMAINS` configurée côté instance Grist — ce n'est pas une erreur de syntaxe de l'appel, mais une politique de sécurité serveur (voir le README).
+- `add_columns` force `isFormula: false` par défaut sur les colonnes sans champ `formula` ni `isFormula` explicite, pour éviter que les colonnes de données classiques soient créées par erreur comme colonnes formule (comportement par défaut de l'API Grist).

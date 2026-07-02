@@ -134,7 +134,7 @@ class GristClient:
 
     def move_doc(self, doc_id: str, workspace_id: str | int) -> Any:
         return self._request(
-            "POST", f"/docs/{doc_id}/move", json={"workspace": workspace_id}
+            "PATCH", f"/docs/{doc_id}/move", json={"workspace": workspace_id}
         )
 
     def download_doc(self, doc_id: str, nohistory: bool = False, template: bool = False) -> bytes:
@@ -156,7 +156,7 @@ class GristClient:
     def delete_doc_history(self, doc_id: str, keep: int) -> Any:
         """Truncate document history, keeping the `keep` most recent states."""
         return self._request(
-            "PATCH", f"/docs/{doc_id}/states/remove", json={"keep": keep}
+            "POST", f"/docs/{doc_id}/states/remove", json={"keep": keep}
         )
 
     def list_doc_access(self, doc_id: str) -> Any:
@@ -195,7 +195,17 @@ class GristClient:
     def add_columns(
         self, doc_id: str, table_id: str, columns: list[dict[str, Any]]
     ) -> Any:
-        """columns: [{"id": "colName", "fields": {"type": "Text", "label": "..."}}]"""
+        """columns: [{"id": "colName", "fields": {"type": "Text", "label": "..."}}]
+
+        Grist defaults a new column to isFormula=True when the "formula" field
+        isn't set, which is rarely what's intended for a plain data column. If
+        the caller didn't specify "formula" or "isFormula", we default to a
+        regular (non-formula) column.
+        """
+        for column in columns:
+            fields = column.setdefault("fields", {})
+            if "formula" not in fields and "isFormula" not in fields:
+                fields["isFormula"] = False
         return self._request(
             "POST",
             f"/docs/{doc_id}/tables/{table_id}/columns",
@@ -314,27 +324,31 @@ class GristClient:
             params["limit"] = limit
         return self._request("GET", f"/docs/{doc_id}/attachments", params=params)
 
-    def upload_attachments(self, doc_id: str, file_paths: list[str]) -> Any:
-        """Upload one or more local files as attachments; returns their new IDs."""
-        files = [
-            ("upload", (path.rsplit("/", 1)[-1], open(path, "rb")))
-            for path in file_paths
+    def upload_attachments(self, doc_id: str, files: list[dict[str, str]]) -> Any:
+        """Upload one or more files as attachments; returns their new IDs.
+
+        files: [{"filename": "photo.jpg", "content_base64": "..."}]. The content
+        is passed inline (base64) rather than as a server-side path, since an MCP
+        client cannot place a file on the MCP server's filesystem before calling
+        this tool.
+        """
+        import base64
+
+        upload_files = [
+            ("upload", (f["filename"], base64.b64decode(f["content_base64"])))
+            for f in files
         ]
-        try:
-            url = f"{self.base_url}/docs/{doc_id}/attachments"
-            headers = {k: v for k, v in self._session.headers.items() if k != "Content-Type"}
-            resp = self._session.post(url, files=files, headers=headers, timeout=60)
-            if not resp.ok:
-                detail = resp.text
-                try:
-                    detail = resp.json().get("error", detail)
-                except ValueError:
-                    pass
-                raise GristAPIError(resp.status_code, detail)
-            return resp.json()
-        finally:
-            for _, (_, fh) in files:
-                fh.close()
+        url = f"{self.base_url}/docs/{doc_id}/attachments"
+        headers = {k: v for k, v in self._session.headers.items() if k != "Content-Type"}
+        resp = self._session.post(url, files=upload_files, headers=headers, timeout=60)
+        if not resp.ok:
+            detail = resp.text
+            try:
+                detail = resp.json().get("error", detail)
+            except ValueError:
+                pass
+            raise GristAPIError(resp.status_code, detail)
+        return resp.json()
 
     def get_attachment_metadata(self, doc_id: str, attachment_id: int) -> Any:
         return self._request("GET", f"/docs/{doc_id}/attachments/{attachment_id}")

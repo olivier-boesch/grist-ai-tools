@@ -134,7 +134,7 @@ class GristClient:
 
     def move_doc(self, doc_id: str, workspace_id: int) -> Any:
         return self._request(
-            "POST", f"/docs/{doc_id}/move", json={"workspace": workspace_id}
+            "PATCH", f"/docs/{doc_id}/move", json={"workspace": workspace_id}
         )
 
     def download_doc(self, doc_id: str, nohistory: bool = False, template: bool = False) -> bytes:
@@ -156,7 +156,7 @@ class GristClient:
     def delete_doc_history(self, doc_id: str, keep: int) -> Any:
         """Truncate document history, keeping the `keep` most recent states."""
         return self._request(
-            "PATCH", f"/docs/{doc_id}/states/remove", json={"keep": keep}
+            "POST", f"/docs/{doc_id}/states/remove", json={"keep": keep}
         )
 
     def list_doc_access(self, doc_id: str) -> Any:
@@ -193,6 +193,15 @@ class GristClient:
     def add_columns(
         self, doc_id: str, table_id: str, columns: list[dict[str, Any]]
     ) -> Any:
+        """Grist defaults a new column to isFormula=True when "formula" isn't
+        set, which is rarely what's intended for a plain data column. If the
+        caller didn't specify "formula" or "isFormula", default to a regular
+        (non-formula) column.
+        """
+        for column in columns:
+            fields = column.setdefault("fields", {})
+            if "formula" not in fields and "isFormula" not in fields:
+                fields["isFormula"] = False
         return self._request(
             "POST",
             f"/docs/{doc_id}/tables/{table_id}/columns",

@@ -80,6 +80,31 @@ def _call(fn, *args: Any, **kwargs: Any) -> Any:
         raise HTTPException(status_code=e.status_code, detail=str(e)) from e
 
 
+def _call_webhook(fn, *args: Any, **kwargs: Any) -> Any:
+    """Like _call, but clarifies the Grist instance's webhook URL allow-list 403.
+
+    Grist rejects webhook URLs whose domain isn't in the server's
+    ALLOWED_WEBHOOK_DOMAINS configuration, regardless of the URL's validity.
+    The raw message ("Provided url is forbidden") reads like a client mistake,
+    so we surface the real cause instead.
+    """
+    try:
+        return fn(*args, **kwargs)
+    except GristAPIError as e:
+        if e.status_code == 403 and "forbidden" in str(e).lower():
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "URL refusée par la politique de sécurité de l'instance Grist "
+                    "(liste blanche de domaines pour les webhooks, ALLOWED_WEBHOOK_DOMAINS "
+                    "côté serveur). Ce n'est pas une erreur de syntaxe de la requête : "
+                    "demandez à l'administrateur de l'instance d'autoriser ce domaine, "
+                    "ou utilisez une URL sur un domaine déjà autorisé."
+                ),
+            ) from e
+        raise HTTPException(status_code=e.status_code, detail=str(e)) from e
+
+
 # --- Orgs -------------------------------------------------------------------
 
 
@@ -594,7 +619,7 @@ def create_webhook(
     doc_id: str, body: CreateWebhookBody, _: None = Depends(_check_auth)
 ) -> Any:
     webhook = {"fields": body.fields.model_dump(by_alias=True)}
-    return _call(_get_client().create_webhook, doc_id, webhook)
+    return _call_webhook(_get_client().create_webhook, doc_id, webhook)
 
 
 @app.patch(
@@ -608,7 +633,7 @@ def update_webhook(
     body: UpdateWebhookBody,
     _: None = Depends(_check_auth),
 ) -> Any:
-    return _call(_get_client().update_webhook, doc_id, webhook_id, body.fields)
+    return _call_webhook(_get_client().update_webhook, doc_id, webhook_id, body.fields)
 
 
 @app.delete(
