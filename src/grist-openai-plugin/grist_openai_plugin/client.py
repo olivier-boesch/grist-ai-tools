@@ -322,7 +322,14 @@ class GristClient:
         """Upload attachments; files: [(filename, content_bytes), ...]."""
         upload_files = [("upload", (name, content)) for name, content in files]
         url = f"{self.base_url}/docs/{doc_id}/attachments"
+        # The session sets a default "Content-Type: application/json" header,
+        # which `requests` would otherwise keep verbatim on a multipart request
+        # (explicit headers only override same-named session headers, they
+        # don't remove them). Set it to None so requests drops it and computes
+        # its own "multipart/form-data; boundary=..." — without this, Grist
+        # can't parse the body and rejects it with "failed upload".
         headers = {k: v for k, v in self._session.headers.items() if k != "Content-Type"}
+        headers["Content-Type"] = None
         resp = self._session.post(url, files=upload_files, headers=headers, timeout=60)
         if not resp.ok:
             detail = resp.text
